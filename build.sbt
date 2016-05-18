@@ -1,6 +1,6 @@
 enablePlugins(JavaAppPackaging)
 
-name := "scala-akka-microservice-example"
+name := "greeter-service-example"
 organization := "com.danielrhoades"
 version := "0.1"
 scalaVersion := "2.11.8"

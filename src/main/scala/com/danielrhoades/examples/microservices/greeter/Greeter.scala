@@ -61,7 +61,7 @@ trait Service extends Protocols {
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: Materializer
 
-  def config: Config
+  def config: Config = ConfigFactory.load()
   val logger: LoggingAdapter
 
   /**
@@ -74,15 +74,16 @@ trait Service extends Protocols {
   }
 
   /**
-    * Defines how HTTP requests should be handled.
+    * Defines how HTTP requests and responses should be handled.
     */
   val routes = {
     logRequestResult(config.getString("services.name")) {
       pathPrefix("greeting") {
         (post & entity(as[GreetingRequest])) { greetingRequest =>
           onComplete(fetchGreeting(greetingRequest)) {
-            case Success(value) => complete(value)
-            case Failure(ex) => complete(BadRequest -> ex)
+            case Success(value) => complete(OK, value)
+            case Failure(ex: IllegalArgumentException) => complete(BadRequest -> ex.getMessage)
+            case Failure(ex) => complete(InternalServerError -> ex.getMessage)
           }
         }
       }
@@ -98,7 +99,6 @@ object AkkaHttpMicroservice extends App with Service {
   override implicit val executor = system.dispatcher
   override implicit val materializer = ActorMaterializer()
 
-  override val config = ConfigFactory.load()
   override val logger = Logging(system, getClass)
 
   Http().bindAndHandle(routes, config.getString("http.interface"), config.getInt("http.port"))
