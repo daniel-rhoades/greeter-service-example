@@ -1,0 +1,11 @@
+---
+# Name of the ECS cluster
+greeter_ecs_cluster_name: "{{ application_name }}-{{ env }}"
+
+# Name of the ECS Task Definition
+greeter_ecs_task_definition_family: "{{ my_ecs_cluster_name }}-rest_endpoint"
+
+# Name, version and number of initial tasks of the ECS Service
+greeter_ecs_service_name: "{{ greeter_ecs_task_definition_family }}-service"
+greeter_ecs_service_version: 1
+greeter_ecs_task_definition_count: 2

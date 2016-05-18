@@ -1,0 +1,4 @@
+- src: daniel-rhoades.aws-vpc
+- src: daniel-rhoades.aws-security-groups
+- src: daniel-rhoades.aws-ecs-autoscale
+- src: daniel-rhoades.aws-elb

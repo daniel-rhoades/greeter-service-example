@@ -1,0 +1,39 @@
+# IAM role to use for ECS operations
+ecs_iam_role: "ecsServiceRole"
+
+# Name of the Nginx container
+nginx_container_name: "nginx"
+
+# Docker image containing Nginx
+nginx_image: "nginx:stable-alpine"
+
+# Port on which HTTPD will run
+nginx_host_port: 80
+
+# CPU/Memory allocation for Nginx
+nginx_cpu: 100
+nginx_memory: 300
+
+# Name of the Greeter container
+greeterservice_container_name: "greeter-service"
+
+# Docker image containing the Greeter
+greeterservice_image: "danielrhoades/greeter-service-example"
+
+# CPU/Memory allocation for REST endpoint
+greeterservice_cpu: 300
+greeterservice_memory: 300
+
+# Port on which the Greeter will run
+greeterservice_host_port: 9000
+
+# Name to give to the ECS Service
+ecs_service_name: "{{ ecs_cluster_name }}"
+
+# Name to give to the ECS Task Definition family
+ecs_task_definition_family: "{{ ecs_service_name }}"
+
+# Default component states
+ecs_task_definition_state: "present"
+ecs_service_state: "present"
+ecs_cluster_state: "present"

@@ -1,0 +1,19 @@
+- name: "Greeter | ECS | Check ngix_conf have been defined"
+  fail: msg="You must specify the configuration command file which will be run to configure the base Nginx image to serve as the reverse proxy"
+  when: nginx_conf is undefined and ecs_service_state == "present" and ecs_cluster_state == "present"
+
+- name: "Greeter | ECS | Check vpc_name has been defined"
+  fail: msg="You must specify the VPC in which you are creating the Task Definition (required to resolve other variables - this isnt an ECS requirement)"
+  when: vpc_name is undefined
+
+- name: "Greeter | ECS | Check elb_name has been defined"
+  fail: msg="You must specify the name of the ELB to use, this will be pointed at the HTTPD container"
+  when: elb_name is undefined and ecs_service_state == "present" and ecs_cluster_state == "present"
+
+- name: "Greeter | ECS | Check ecs_cluster_name has been defined"
+  fail: msg="You must specify the name of the ECS to create the Task Definition and run the Service within"
+  when: ecs_cluster_name is undefined
+
+- name: "Greeter | ECS | Check ecs_task_definition_count has been defined"
+  fail: msg="You must specify the number of copy of the Task Definition you want to create when running the Service"
+  when: ecs_task_definition_count is undefined and ecs_service_state == "present" and ecs_cluster_state == "present"

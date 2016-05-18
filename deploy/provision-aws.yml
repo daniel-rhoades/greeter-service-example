@@ -1,0 +1,86 @@
+#
+# Ansible playbook for provisioning production-ready infrastructure hosting a deployment of the greeter-service-example.
+#
+- name: Greeter | Provision all required infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  pre_tasks:
+    - name: Display all variables/facts known for the host
+      debug: var=hostvars[inventory_hostname] verbosity=4
+  roles:
+    # Provision networking
+    - {
+        role: daniel-rhoades.aws-vpc,
+        vpc_name: "{{ greeter_vpc_name }}",
+        vpc_region: "{{ greeter_vpc_region }}",
+        vpc_cidr_block: "{{ greeter_vpc_cidr_block }}",
+        vpc_subnets: "{{ greeter_vpc_subnets }}",
+        public_subnet_routes: "{{ greeter_public_subnet_routes }}"
+      }
+
+    # Provision security groups
+    - {
+        role: daniel-rhoades.aws-security-groups,
+        vpc_region: "{{ greeter_vpc_region }}",
+        vpc_id: "{{ vpc.vpc_id }}",
+        ec2_group_inbound_sg: "{{ inbound_security_groups }}",
+        ec2_group_internal_inbound_sg_file: "files/internal-securitygroups.yml",
+        ec2_group_outbound_sg: "{{ outbound_security_groups }}"
+      }
+
+    # Provision ECS with auto scaling EC2 instances
+    - {
+        role: daniel-rhoades.aws-ecs-autoscale,
+        ec2_asg_desired_capacity: "{{ greeter_ec2_asg_desired_capacity }}",
+        ec2_asg_max_size: "{{ greeter_ec2_asg_max_size }}",
+        ecs_cluster_name: "{{ greeter_ecs_cluster_name }}",
+        ec2_security_groups: [
+          "{{ ec2_group_internal_inbound_sg.results[0].group_id }}",
+          "{{ ec2_group_outbound_sg.results[0].group_id }}"
+          ],
+        ec2_asg_availability_zones: [
+          "{{ greeter_vpc_subnets[0].az }}",
+          "{{ greeter_vpc_subnets[1].az }}"
+          ],
+        ec2_asg_vpc_subnets: [
+          "{{ vpc.subnets[0].id }}",
+          "{{ vpc.subnets[1].id }}"
+          ],
+        ec2_asg_tags: "{{ ec2_tags }}",
+        vpc_name: "{{ greeter_vpc_name }}"
+      }
+
+    # Provision an ELB and register it with an alias in Route 53
+    - {
+        role: daniel-rhoades.aws-elb,
+        elb_name: "{{ greeter_elb_name }}",
+        vpc_name: "{{ greeter_vpc_name }}",
+        elb_listeners: "{{ greeter_elb_listeners }}",
+        elb_security_groups: [
+          "{{ ec2_group_inbound_sg.results[0].group_id }}"
+          ],
+        elb_region: "{{ greeter_elb_region }}",
+        elb_subnets: [
+           "{{ vpc.subnets[0].id }}",
+           "{{ vpc.subnets[1].id }}"
+         ],
+        elb_health_check: "{{ greeter_elb_health_check }}",
+        route53_zone: "{{ my_route53_zone }}",
+        route53_host: "{{ application_name }}-{{ env }}.{{ my_route53_zone }}"
+      }
+
+- name: Greeter | Configure and run the Greeter service on ECS
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  roles:
+    # Configure the Greeter service to run on ECS
+    - {
+        role: greeter-on-ecs,
+        vpc_name: "{{ greeter_vpc_name }}",
+        nginx_conf: "rest_endpoint-entry.sh",
+        elb_name: "{{ greeter_elb_name }}",
+        ecs_cluster_name: "{{ greeter_ecs_cluster_name }}",
+        ecs_task_definition_count: "{{ greeter_ecs_task_definition_count }}"
+      }

@@ -1,0 +1,37 @@
+---
+#
+# Security groups to apply later to services
+#
+# *** DO NOT CHANGE ORDER WITHOUT UPDATING ORDERING ASSUMPTIONS IN PLAYBOOK ***
+#
+
+# Inbound rules
+inbound_security_groups:
+  - sg_name: inbound-web
+    sg_description: allow http and https access (public)
+    sg_rules:
+      - proto: tcp
+        from_port: 80
+        to_port: 80
+        cidr_ip: "{{ everywhere_cidr }}"
+
+      - proto: tcp
+        from_port: 443
+        to_port: 443
+        cidr_ip: "{{ everywhere_cidr }}"
+
+  - sg_name: inbound-ssh
+    sg_description: allow internal ssh access
+    sg_rules:
+     - proto: tcp
+       from_port: 22
+       to_port: 22
+       cidr_ip: "{{ greeter_vpc_cidr_block }}"
+
+# Outbound rules
+outbound_security_groups:
+  - sg_name: outbound-all
+    sg_description: allows outbound traffic to any IP address
+    sg_rules:
+      - proto: all
+        cidr_ip: "{{ everywhere_cidr }}"

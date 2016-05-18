@@ -1,0 +1,36 @@
+#
+# Ansible playbook for decommissioning production-ready infrastructure hosting a deployment of the Greeter service.
+#
+- name: Greeter | Decomission all required infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  pre_tasks:
+    - name: Display all variables/facts known for the host
+      debug: var=hostvars[inventory_hostname] verbosity=4
+  roles:
+    # Decommission ECS services
+    - {
+        role: greeter-on-ecs,
+        ecs_service_state: "absent",
+        vpc_name: "{{ greeter_vpc_name }}",
+        nginx_conf: "rest_endpoint-entry.sh",
+        ecs_cluster_name: "{{ greeter_ecs_cluster_name }}"
+      }
+
+    # Decomission the ELB
+    - {
+        role: daniel-rhoades.aws-elb,
+        ec2_elb_state: "absent",
+        vpc_name: "{{ greeter_vpc_name }}",
+        elb_name: "{{ greeter_elb_name }}"
+      }
+
+    # Decommission ECS Cluster, EC2, Launch Control and Auto Scaling Groups
+    - {
+        role: daniel-rhoades.aws-ecs-autoscale,
+        ecs_cluster_name: "{{ greeter_ecs_cluster_name }}",
+        vpc_name: "{{ greeter_vpc_name }}",
+        ec2_asg_tags: "{{ ec2_tags }}",
+        ecs_state: "absent"
+      }

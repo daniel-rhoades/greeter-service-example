@@ -1,0 +1,111 @@
+# Check pre-requisites
+- include: pre-requisites.yml
+
+# Commissioning block
+- block:
+  # Read in the Nginx config file contents
+  - set_fact: "nginx_conf_with_dir=files/{{ nginx_conf }}"
+  - set_fact: "nginx_conf_contents={{ lookup('file', nginx_conf_with_dir) }}"
+  - debug: var=nginx_conf_contents verbosity=4
+
+  # ECS Task Definition which holds the logical combination of Nginx as a reverse proxy to the Greeter service
+  - name: "Greeter on Nginx/Akka HTTP | Describe the application as an ECS Task Definition"
+    ecs_taskdefinition:
+      state: "{{ ecs_task_definition_state }}"
+      family: "{{ ecs_task_definition_family }}"
+      containers:
+        # Reverse Proxy - Nginx
+        - name: "{{ nginx_container_name }}"
+          cpu: "{{ nginx_cpu }}"
+          essential: true
+          image: "{{ nginx_image }}"
+          memory: "{{ nginx_memory }}"
+          entryPoint:
+            - "sh"
+            - "-c"
+          command:
+            - "{{ nginx_conf_contents }}"
+          links:
+            - "{{ greeterservice_container_name }}:greeter"
+          logConfiguration:
+            logDriver: "syslog"
+            options:
+              tag: "nginx"
+          ulimits:
+            - name: "nofile"
+              softLimit: 65536
+              hardLimit: 65536
+          portMappings:
+            - containerPort: 80
+              hostPort: "{{ nginx_host_port }}"
+
+        # Greeter service
+        - name: "{{ greeterservice_container_name }}"
+          cpu: "{{ greeterservice_cpu }}"
+          essential: true
+          image: "{{ greeterservice_image }}"
+          memory: "{{ greeterservice_memory }}"
+          logConfiguration:
+            logDriver: "syslog"
+            options:
+              tag: "greeterservice"
+          ulimits:
+            - name: "nofile"
+              softLimit: 65536
+              hardLimit: 65536
+          portMappings:
+            - containerPort: 9000
+    register: ecs_taskdefinition_output
+
+  - debug: var=ecs_taskdefinition_output verbosity=4
+
+  # ECS Service which runs the Task Definition on the ECS cluster
+  - name: "Greeter on Nginx/Akka HTTP | Provision an ECS Service using the previous ECS Task Definition"
+    ecs_service:
+      state: "{{ ecs_service_state }}"
+      name: "{{ ecs_service_name }}"
+      cluster: "{{ ecs_cluster_name }}"
+      task_definition: "{{ ecs_task_definition_family }}:{{ ecs_taskdefinition_output.taskdefinition.revision }}"
+      desired_count: "{{ ecs_task_definition_count }}"
+      role: "{{ ecs_iam_role }}"
+      load_balancers:
+        - loadBalancerName: "{{ elb_name }}"
+          containerName: "{{ nginx_container_name }}"
+          containerPort: 80
+    register: ecs_service_output
+
+  - debug: var=ecs_service_output verbosity=4
+
+  when: ecs_service_state == "present"
+
+- block:
+  - name: "Greeter on Nginx/Akka HTTP | Get ECS service facts"
+    ecs_service_facts:
+      cluster: "{{ ecs_cluster_name }}"
+      service: "{{ ecs_service_name }}"
+      details: "true"
+    register: ecs_service_facts
+
+  - debug: var=ecs_service_facts verbosity=4
+
+  when: ecs_service_state == "absent"
+
+# Decommissioning block
+- block:
+  # Update the ECS Service to set desired count to zero
+  - name: "Greeter on Nginx/Akka HTTP | Scale down the ECS Service to zero"
+    ecs_service:
+      state: "present"
+      name: "{{ ecs_service_name }}"
+      task_definition: "{{ ecs_service_facts.ansible_facts.services[0].taskDefinition }}"
+      cluster: "{{ ecs_cluster_name }}"
+      desired_count: 0
+
+  # Decommission the ECS Service
+  - name: "Greeter on Nginx/Akka HTTP | Decommission the ECS Service"
+    ecs_service:
+      state: "absent"
+      name: "{{ ecs_service_name }}"
+      cluster: "{{ ecs_cluster_name }}"
+
+  when: ecs_service_state == "absent" and ecs_service_facts.ansible_facts.services[0].status == "ACTIVE"

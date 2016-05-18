@@ -1,0 +1,42 @@
+---
+# Name of the VPC
+greeter_vpc_name: "{{ application_name }}-{{ env }}"
+
+# Region in which to create the VPC within
+greeter_vpc_region: "{{ region }}"
+
+everywhere_cidr: "0.0.0.0/0"
+
+# CIDR block range for the VPC
+greeter_vpc_cidr_block: "172.40.0.0/16"
+
+#
+# Subnets definitions for the VPC
+#
+# *** DO NOT CHANGE ORDER WITHOUT UPDATING ORDERING ASSUMPTIONS IN PLAYBOOK ***
+#
+greeter_vpc_subnets:
+ - cidr: "172.40.10.0/24"
+   az: "{{ greeter_vpc_region }}a"
+   resource_tags: {
+    "Name": "{{ greeter_vpc_name }}-ecscluster-{{ greeter_vpc_region }}a",
+    "env": "{{ env }}",
+    "application": "{{ application_name }}"
+    }
+
+ - cidr: "172.40.20.0/24"
+   az: "{{ greeter_vpc_region }}b"
+   resource_tags: {
+    "Name":"{{ greeter_vpc_name }}-ecscluster-{{ greeter_vpc_region }}b",
+    "env": "{{ env }}",
+    "application": "{{ application_name }}"
+    }
+
+# Routing tables for subnets which require access to the Internet
+greeter_public_subnet_routes:
+ - subnets:
+     - "{{ greeter_vpc_subnets[0].cidr }}"
+     - "{{ greeter_vpc_subnets[1].cidr }}"
+   routes:
+     - dest: "{{ everywhere_cidr }}"
+       gw: igw

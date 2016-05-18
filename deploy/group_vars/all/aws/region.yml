@@ -1,0 +1,3 @@
+---
+# Default region in which AWS components will be provisioned within
+region: eu-west-1

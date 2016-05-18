@@ -1,0 +1,18 @@
+---
+# Name of the SSH key registered in IAM
+key_name: "{{ ssh_key_name }}"
+
+# EC2 instance type for all instances created during auto scaling
+ec2_instance_type: t2.medium
+
+# Initial number of EC2 instances to auto scale
+greeter_ec2_asg_desired_capacity: 2
+
+# Maximum number of EC2 instances to auto scale
+greeter_ec2_asg_max_size: 4
+
+# Tags to apply to all EC2 instances created during auto scaling
+ec2_tags:
+  - component: "{{ ec2_instance_name }}"
+    Name: "{{ vpc_name }}-{{ ec2_instance_name }}"
+    env: "{{ env }}"
